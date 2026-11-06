@@ -1,11 +1,13 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
-<title>画像トリミング</title>
+<title>画像一括トリミング</title>
+
+<!-- ZIP作成ライブラリ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
 <style>
 * {
@@ -15,7 +17,6 @@
 
 body {
   margin: 0;
-  min-height: 100vh;
   background: #111;
   color: #fff;
   font-family: Arial, "Noto Sans JP", sans-serif;
@@ -23,18 +24,18 @@ body {
 
 .container {
   width: 100%;
-  max-width: 760px;
+  max-width: 850px;
   margin: auto;
-  padding: 20px;
+  padding: 22px;
 }
 
 h1 {
-  font-size: 21px;
-  margin: 5px 0 22px;
+  font-size: 22px;
+  margin: 5px 0 25px;
 }
 
 .section {
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 
 .section-title {
@@ -45,7 +46,7 @@ h1 {
 
 .upload {
   width: 100%;
-  min-height: 150px;
+  min-height: 160px;
   border: 2px dashed #444;
   border-radius: 12px;
   display: flex;
@@ -56,159 +57,208 @@ h1 {
   background: #1b1b1b;
   cursor: pointer;
   color: #aaa;
-}
-
-.upload:hover {
-  border-color: #a72bbd;
+  text-align: center;
+  padding: 20px;
 }
 
 .upload strong {
   color: #fff;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .upload input {
   display: none;
 }
 
-.ratios {
+.upload.dragover {
+  border-color: #a72bbd;
+  background: #281b2c;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.small-btn {
+  flex: 1;
+  padding: 12px;
+  background: #292929;
+  color: #ccc;
+  border: 1px solid #444;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.small-btn:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.summary-item {
+  background: #1e1e1e;
+  padding: 14px 8px;
+  border-radius: 9px;
+  text-align: center;
+}
+
+.summary-number {
+  font-size: 23px;
+  font-weight: bold;
+}
+
+.summary-label {
+  font-size: 11px;
+  color: #999;
+  margin-top: 5px;
+}
+
+.ratio-list {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 9px;
 }
 
-.ratio {
-  background: #222;
-  border: 1px solid #383838;
-  border-radius: 9px;
-  padding: 12px 5px;
-  color: #ccc;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.ratio.active {
-  border: 2px solid #a72bbd;
-  background: #301b35;
-  color: #fff;
-  padding: 11px 4px;
-}
-
-.ratio .shape {
-  display: block;
-  width: 28px;
-  height: 28px;
-  border: 2px solid currentColor;
-  margin: 0 auto 8px;
-}
-
-.ratio[data-ratio="1:1"] .shape {
-  width: 27px;
-  height: 27px;
-}
-
-.ratio[data-ratio="16:9"] .shape {
-  width: 34px;
-  height: 19px;
-}
-
-.ratio[data-ratio="3:2"] .shape {
-  width: 33px;
-  height: 22px;
-}
-
-.ratio[data-ratio="2:3"] .shape {
-  width: 20px;
-  height: 30px;
-}
-
-.ratio[data-ratio="3:4"] .shape {
-  width: 22px;
-  height: 29px;
-}
-
-.ratio[data-ratio="4:3"] .shape {
-  width: 30px;
-  height: 22px;
-}
-
-.ratio[data-ratio="9:16"] .shape {
-  width: 17px;
-  height: 30px;
-}
-
-.ratio[data-ratio="4:5"] .shape {
-  width: 22px;
-  height: 28px;
-}
-
-.ratio[data-ratio="5:4"] .shape {
-  width: 30px;
-  height: 24px;
-}
-
-.info {
-  color: #aaa;
-  font-size: 12px;
-  margin-top: 10px;
-}
-
-.preview-wrap {
-  background: #1b1b1b;
-  border-radius: 12px;
+.ratio-item {
+  background: #1e1e1e;
   padding: 12px;
+  border-radius: 9px;
   text-align: center;
+  border: 1px solid #333;
 }
 
-.preview {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100px;
-  max-height: 500px;
+.ratio-name {
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.ratio-count {
+  font-size: 12px;
+  color: #aaa;
+  margin-top: 5px;
+}
+
+.ratio-bar {
+  height: 4px;
+  background: #333;
+  border-radius: 5px;
+  margin-top: 9px;
   overflow: hidden;
 }
 
-.preview canvas {
-  display: block;
-  max-width: 100%;
-  max-height: 470px;
-  object-fit: contain;
+.ratio-bar-inner {
+  height: 100%;
+  background: #a72bbd;
+  width: 0%;
 }
 
-.placeholder {
-  color: #666;
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: #1c1c1c;
+  border-radius: 9px;
+  min-width: 0;
+}
+
+.file-thumb {
+  width: 58px;
+  height: 58px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #333;
+  flex-shrink: 0;
+}
+
+.file-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.file-name {
   font-size: 13px;
-  padding: 40px 0;
+  overflow-wrap: anywhere;
 }
 
-.image-info {
-  font-size: 12px;
+.file-detail {
   color: #999;
-  margin-top: 12px;
+  font-size: 11px;
+  margin-top: 5px;
 }
 
-button.download {
-  width: 100%;
-  padding: 15px;
-  border: none;
+.file-status {
+  font-size: 11px;
+  color: #aaa;
+  margin-top: 5px;
+}
+
+.progress-wrap {
+  background: #292929;
+  height: 7px;
   border-radius: 10px;
+  overflow: hidden;
+  margin-top: 12px;
+  display: none;
+}
+
+.progress-bar {
+  height: 100%;
+  width: 0%;
+  background: #a72bbd;
+  transition: width .15s;
+}
+
+.progress-text {
+  color: #aaa;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.download {
+  width: 100%;
+  padding: 16px;
   background: #a72bbd;
   color: white;
   font-size: 15px;
   font-weight: bold;
+  border: none;
+  border-radius: 10px;
   cursor: pointer;
 }
 
-button.download:disabled {
+.download:disabled {
   background: #444;
   color: #888;
   cursor: not-allowed;
 }
 
-@media (min-width: 600px) {
+.note {
+  font-size: 12px;
+  color: #777;
+  line-height: 1.8;
+  margin-top: 15px;
+}
+
+@media(max-width: 400px) {
   .container {
-    padding-top: 35px;
+    padding: 15px;
   }
 }
 </style>
@@ -218,222 +268,286 @@ button.download:disabled {
 
 <div class="container">
 
-  <h1>画像トリミング</h1>
+  <h1>画像一括トリミング</h1>
 
   <!-- 画像入力 -->
   <div class="section">
+
     <div class="section-title">画像を入力</div>
 
     <label class="upload" id="upload">
-      <strong>画像を選択</strong>
-      <span>またはここに画像をドラッグ＆ドロップ</span>
-      <input type="file" id="fileInput" accept="image/*">
+
+      <strong>複数の画像を選択</strong>
+
+      <span>または画像をここにドラッグ＆ドロップ</span>
+
+      <span style="font-size:12px">
+        JPG / PNG / WEBP / GIF など
+      </span>
+
+      <input
+        type="file"
+        id="fileInput"
+        accept="image/*"
+        multiple
+      >
+
     </label>
-  </div>
 
-  <!-- 比率選択 -->
-  <div class="section">
-    <div class="section-title">切り抜きサイズ</div>
-
-    <div class="ratios" id="ratios">
-
-      <button class="ratio" data-ratio="1:1">
-        <span class="shape"></span>1:1
+    <div class="actions">
+      <button class="small-btn" id="addButton">
+        ＋ 画像を追加
       </button>
 
-      <button class="ratio" data-ratio="16:9">
-        <span class="shape"></span>16:9
+      <button class="small-btn" id="clearButton">
+        すべて削除
       </button>
-
-      <button class="ratio" data-ratio="3:2">
-        <span class="shape"></span>3:2
-      </button>
-
-      <button class="ratio" data-ratio="2:3">
-        <span class="shape"></span>2:3
-      </button>
-
-      <button class="ratio" data-ratio="3:4">
-        <span class="shape"></span>3:4
-      </button>
-
-      <button class="ratio" data-ratio="4:3">
-        <span class="shape"></span>4:3
-      </button>
-
-      <button class="ratio" data-ratio="9:16">
-        <span class="shape"></span>9:16
-      </button>
-
-      <button class="ratio" data-ratio="4:5">
-        <span class="shape"></span>4:5
-      </button>
-
-      <button class="ratio" data-ratio="5:4">
-        <span class="shape"></span>5:4
-      </button>
-
     </div>
 
-    <div class="info" id="ratioInfo">
-      画像を入力すると最も近い比率を自動選択します。
-    </div>
   </div>
 
-  <!-- プレビュー -->
+  <!-- 集計 -->
   <div class="section">
-    <div class="section-title">切り抜きプレビュー</div>
 
-    <div class="preview-wrap">
-      <div class="preview" id="preview">
-        <div class="placeholder">画像がまだ選択されていません</div>
+    <div class="section-title">画像の集計</div>
+
+    <div class="summary">
+
+      <div class="summary-item">
+        <div class="summary-number" id="totalCount">0</div>
+        <div class="summary-label">画像数</div>
       </div>
 
-      <div class="image-info" id="imageInfo"></div>
+      <div class="summary-item">
+        <div class="summary-number" id="readyCount">0</div>
+        <div class="summary-label">処理可能</div>
+      </div>
+
+      <div class="summary-item">
+        <div class="summary-number" id="errorCount">0</div>
+        <div class="summary-label">エラー</div>
+      </div>
+
     </div>
+
   </div>
 
-  <!-- 保存 -->
+  <!-- 比率ごとの集計 -->
   <div class="section">
-    <button class="download" id="download" disabled>
-      切り抜いた画像を保存
+
+    <div class="section-title">切り抜きサイズ別</div>
+
+    <div class="ratio-list" id="ratioList"></div>
+
+  </div>
+
+  <!-- 画像一覧 -->
+  <div class="section">
+
+    <div class="section-title">入力画像一覧</div>
+
+    <div class="file-list" id="fileList">
+      <div style="color:#666;font-size:13px;padding:15px">
+        画像がまだ選択されていません
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 進捗 -->
+  <div class="section">
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <div class="progress-text" id="progressText"></div>
+
+  </div>
+
+  <!-- ダウンロード -->
+  <div class="section">
+
+    <button class="download" id="downloadButton" disabled>
+      ZIPで一括ダウンロード
     </button>
+
+    <div class="note">
+      ・画像ごとに最も近い比率を自動判定します。<br>
+      ・比率ごとにフォルダを分けて保存します。<br>
+      ・切り抜きは元画像の中央を基準に最大面積で行います。<br>
+      ・出力形式はPNGです。<br>
+      ・画像はサーバーにアップロードされません。
+    </div>
+
   </div>
 
 </div>
 
 <script>
-const RATIO_LIST = [
-  { name: "1:1", value: 1 },
-  { name: "16:9", value: 16 / 9 },
-  { name: "3:2", value: 3 / 2 },
-  { name: "2:3", value: 2 / 3 },
-  { name: "3:4", value: 3 / 4 },
-  { name: "4:3", value: 4 / 3 },
-  { name: "9:16", value: 9 / 16 },
-  { name: "4:5", value: 4 / 5 },
-  { name: "5:4", value: 5 / 4 }
+/* ========================================
+   設定
+======================================== */
+
+const RATIOS = [
+  { name: "1:1", folder: "1x1", value: 1 },
+  { name: "16:9", folder: "16x9", value: 16 / 9 },
+  { name: "3:2", folder: "3x2", value: 3 / 2 },
+  { name: "2:3", folder: "2x3", value: 2 / 3 },
+  { name: "3:4", folder: "3x4", value: 3 / 4 },
+  { name: "4:3", folder: "4x3", value: 4 / 3 },
+  { name: "9:16", folder: "9x16", value: 9 / 16 },
+  { name: "4:5", folder: "4x5", value: 4 / 5 },
+  { name: "5:4", folder: "5x4", value: 5 / 4 }
 ];
 
-let originalImage = null;
-let selectedRatio = null;
+const files = [];
+
+let processing = false;
+
+
+/* ========================================
+   DOM
+======================================== */
 
 const fileInput = document.getElementById("fileInput");
 const upload = document.getElementById("upload");
-const preview = document.getElementById("preview");
-const imageInfo = document.getElementById("imageInfo");
-const ratioInfo = document.getElementById("ratioInfo");
-const download = document.getElementById("download");
+const fileList = document.getElementById("fileList");
+const ratioList = document.getElementById("ratioList");
 
-const canvas = document.createElement("canvas");
-const ctx = canvas.getContext("2d");
+const totalCount = document.getElementById("totalCount");
+const readyCount = document.getElementById("readyCount");
+const errorCount = document.getElementById("errorCount");
 
-// 画像読み込み
-fileInput.addEventListener("change", e => {
-  const file = e.target.files[0];
-  if (file) loadImage(file);
+const downloadButton = document.getElementById("downloadButton");
+const progressWrap = document.getElementById("progressWrap");
+const progressBar = document.getElementById("progressBar");
+const progressText = document.getElementById("progressText");
+
+
+/* ========================================
+   ファイル追加
+======================================== */
+
+fileInput.addEventListener("change", event => {
+  addFiles(event.target.files);
+  fileInput.value = "";
 });
 
-// ドラッグ＆ドロップ
-upload.addEventListener("dragover", e => {
-  e.preventDefault();
-  upload.style.borderColor = "#a72bbd";
+document.getElementById("addButton").addEventListener("click", () => {
+  fileInput.click();
 });
 
-upload.addEventListener("dragleave", () => {
-  upload.style.borderColor = "#444";
-});
+function addFiles(selectedFiles) {
 
-upload.addEventListener("drop", e => {
-  e.preventDefault();
-  upload.style.borderColor = "#444";
+  if (processing) return;
 
-  const file = e.dataTransfer.files[0];
-  if (file && file.type.startsWith("image/")) {
-    loadImage(file);
-  }
-});
+  const newFiles = Array.from(selectedFiles)
+    .filter(file => file.type.startsWith("image/"));
 
-// 画像読み込み処理
-function loadImage(file) {
-  const url = URL.createObjectURL(file);
+  newFiles.forEach(file => {
+
+    const item = {
+      id: crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}_${Math.random()}`,
+
+      file,
+      name: file.name,
+      image: null,
+      ratio: null,
+      status: "読み込み中",
+      error: false,
+      output: null,
+      previewUrl: null
+    };
+
+    files.push(item);
+
+    loadImage(item);
+  });
+
+  render();
+}
+
+
+/* ========================================
+   画像読み込み
+======================================== */
+
+function loadImage(item) {
+
+  const url = URL.createObjectURL(item.file);
   const img = new Image();
 
   img.onload = () => {
-    if (originalImage?.src?.startsWith("blob:")) {
-      URL.revokeObjectURL(originalImage.src);
-    }
 
-    originalImage = img;
+    item.image = img;
 
     const width = img.naturalWidth;
     const height = img.naturalHeight;
-    const originalRatio = width / height;
 
-    // 最も近い比率を自動判定
-    selectedRatio = RATIO_LIST.reduce((best, current) => {
-      const currentDiff = Math.abs(
-        Math.log(originalRatio / current.value)
-      );
+    item.ratio = findNearestRatio(width / height);
 
-      const bestDiff = Math.abs(
-        Math.log(originalRatio / best.value)
-      );
+    item.status = "準備完了";
+    item.error = false;
 
-      return currentDiff < bestDiff ? current : best;
-    });
+    item.width = width;
+    item.height = height;
 
-    updateRatioButtons();
-    updatePreview();
-
-    imageInfo.textContent =
-      `元画像：${width} × ${height}px`;
-
+    render();
     URL.revokeObjectURL(url);
   };
 
   img.onerror = () => {
+
+    item.status = "読み込みエラー";
+    item.error = true;
+
     URL.revokeObjectURL(url);
-    alert("画像を読み込めませんでした。");
+    render();
   };
 
   img.src = url;
 }
 
-// 比率ボタン
-document.querySelectorAll(".ratio").forEach(button => {
-  button.addEventListener("click", () => {
-    const name = button.dataset.ratio;
 
-    selectedRatio = RATIO_LIST.find(
-      item => item.name === name
+/* ========================================
+   最も近い比率を判定
+======================================== */
+
+function findNearestRatio(sourceRatio) {
+
+  return RATIOS.reduce((best, current) => {
+
+    const currentDiff = Math.abs(
+      Math.log(sourceRatio / current.value)
     );
 
-    updateRatioButtons();
-    updatePreview();
-  });
-});
-
-// ボタン表示更新
-function updateRatioButtons() {
-  document.querySelectorAll(".ratio").forEach(button => {
-    button.classList.toggle(
-      "active",
-      button.dataset.ratio === selectedRatio?.name
+    const bestDiff = Math.abs(
+      Math.log(sourceRatio / best.value)
     );
-  });
 
-  if (selectedRatio) {
-    ratioInfo.textContent =
-      `選択中：${selectedRatio.name}`;
-  }
+    return currentDiff < bestDiff
+      ? current
+      : best;
+
+  }, RATIOS[0]);
 }
 
-// 最大面積で中央切り抜き
-function cropImage() {
-  const sourceWidth = originalImage.naturalWidth;
-  const sourceHeight = originalImage.naturalHeight;
-  const targetRatio = selectedRatio.value;
+
+/* ========================================
+   画像切り抜き
+======================================== */
+
+function cropImage(item) {
+
+  const img = item.image;
+
+  const sourceWidth = img.naturalWidth;
+  const sourceHeight = img.naturalHeight;
+
+  const targetRatio = item.ratio.value;
   const sourceRatio = sourceWidth / sourceHeight;
 
   let cropWidth;
@@ -442,24 +556,35 @@ function cropImage() {
   let cropY;
 
   if (sourceRatio > targetRatio) {
-    // 元画像の横幅が余る場合
+
+    // 横方向を切り抜く
+
     cropHeight = sourceHeight;
     cropWidth = sourceHeight * targetRatio;
+
     cropX = (sourceWidth - cropWidth) / 2;
     cropY = 0;
+
   } else {
-    // 元画像の縦幅が余る場合
+
+    // 縦方向を切り抜く
+
     cropWidth = sourceWidth;
     cropHeight = sourceWidth / targetRatio;
+
     cropX = 0;
     cropY = (sourceHeight - cropHeight) / 2;
   }
 
-  canvas.width = Math.round(cropWidth);
-  canvas.height = Math.round(cropHeight);
+  const canvas = document.createElement("canvas");
+
+  canvas.width = Math.max(1, Math.round(cropWidth));
+  canvas.height = Math.max(1, Math.round(cropHeight));
+
+  const ctx = canvas.getContext("2d");
 
   ctx.drawImage(
-    originalImage,
+    img,
     cropX,
     cropY,
     cropWidth,
@@ -470,47 +595,353 @@ function cropImage() {
     canvas.height
   );
 
-  return {
-    width: canvas.width,
-    height: canvas.height
-  };
+  return canvas;
 }
 
-// プレビュー更新
-function updatePreview() {
-  if (!originalImage || !selectedRatio) return;
 
-  const result = cropImage();
+/* ========================================
+   ファイル名処理
+======================================== */
 
-  preview.innerHTML = "";
-  preview.appendChild(canvas);
+function getOutputName(name) {
 
-  imageInfo.textContent =
-    `切り抜き後：${result.width} × ${result.height}px`;
+  // 元の拡張子を削除してPNGに変更
+  const base = name.replace(/\.[^.]+$/, "");
 
-  download.disabled = false;
+  return base + ".png";
 }
 
-// 保存
-download.addEventListener("click", () => {
-  if (!originalImage) return;
+// 同じフォルダ内の重複ファイル名を防ぐ
+function uniqueFileName(folder, fileName) {
 
-  canvas.toBlob(blob => {
-    if (!blob) {
-      alert("画像の保存に失敗しました。");
-      return;
+  if (!folder._usedNames) {
+    folder._usedNames = new Set();
+  }
+
+  const base = fileName.replace(/\.png$/i, "");
+  let result = fileName;
+  let count = 2;
+
+  while (folder._usedNames.has(result.toLowerCase())) {
+    result = `${base}_${count}.png`;
+    count++;
+  }
+
+  folder._usedNames.add(result.toLowerCase());
+
+  return result;
+}
+
+
+/* ========================================
+   一覧表示
+======================================== */
+
+function render() {
+
+  const validFiles = files.filter(item => !item.error);
+
+  const errors = files.filter(item => item.error);
+
+  totalCount.textContent = files.length;
+  readyCount.textContent = validFiles.length;
+  errorCount.textContent = errors.length;
+
+  // 比率ごとの集計
+  ratioList.innerHTML = "";
+
+  RATIOS.forEach(ratio => {
+
+    const count = validFiles.filter(
+      item => item.ratio === ratio
+    ).length;
+
+    const percent = validFiles.length
+      ? count / validFiles.length * 100
+      : 0;
+
+    const div = document.createElement("div");
+    div.className = "ratio-item";
+
+    div.innerHTML = `
+      <div class="ratio-name">${ratio.name}</div>
+      <div class="ratio-count">${count} 枚</div>
+      <div class="ratio-bar">
+        <div class="ratio-bar-inner" style="width:${percent}%"></div>
+      </div>
+    `;
+
+    ratioList.appendChild(div);
+  });
+
+  // ファイル一覧
+  fileList.innerHTML = "";
+
+  if (files.length === 0) {
+
+    fileList.innerHTML = `
+      <div style="color:#666;font-size:13px;padding:15px">
+        画像がまだ選択されていません
+      </div>
+    `;
+
+  }
+
+  files.forEach(item => {
+
+    const div = document.createElement("div");
+    div.className = "file-item";
+
+    const thumb = document.createElement("img");
+    thumb.className = "file-thumb";
+
+    if (item.image) {
+      thumb.src = item.image.src;
     }
 
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const info = document.createElement("div");
+    info.className = "file-info";
 
-    a.href = url;
-    a.download = `crop_${selectedRatio.name.replace(":", "x")}.png`;
-    a.click();
+    const name = document.createElement("div");
+    name.className = "file-name";
+    name.textContent = item.name;
 
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }, "image/png");
+    const detail = document.createElement("div");
+    detail.className = "file-detail";
+
+    detail.textContent = item.ratio
+      ? `${item.width} × ${item.height}px → ${item.ratio.name}`
+      : "";
+
+    const status = document.createElement("div");
+    status.className = "file-status";
+    status.textContent = item.status;
+
+    info.append(name, detail, status);
+
+    div.append(thumb, info);
+    fileList.appendChild(div);
+  });
+
+  downloadButton.disabled =
+    validFiles.length === 0 || processing;
+}
+
+
+/* ========================================
+   すべて削除
+======================================== */
+
+document.getElementById("clearButton")
+  .addEventListener("click", () => {
+
+    if (processing) return;
+
+    files.length = 0;
+
+    progressBar.style.width = "0%";
+    progressWrap.style.display = "none";
+    progressText.textContent = "";
+
+    render();
+  });
+
+
+/* ========================================
+   ドラッグ＆ドロップ
+======================================== */
+
+upload.addEventListener("dragover", event => {
+  event.preventDefault();
+  upload.classList.add("dragover");
 });
+
+upload.addEventListener("dragleave", () => {
+  upload.classList.remove("dragover");
+});
+
+upload.addEventListener("drop", event => {
+
+  event.preventDefault();
+
+  upload.classList.remove("dragover");
+
+  addFiles(event.dataTransfer.files);
+});
+
+
+/* ========================================
+   ZIP作成・一括保存
+======================================== */
+
+downloadButton.addEventListener("click", async () => {
+
+  if (processing) return;
+
+  if (typeof JSZip === "undefined") {
+    alert("ZIPライブラリを読み込めませんでした。");
+    return;
+  }
+
+  const targets = files.filter(
+    item => item.image && !item.error
+  );
+
+  if (targets.length === 0) return;
+
+  processing = true;
+
+  downloadButton.disabled = true;
+  downloadButton.textContent = "処理中...";
+
+  progressWrap.style.display = "block";
+  progressBar.style.width = "0%";
+
+  const zip = new JSZip();
+
+  // 比率別フォルダ
+  const folders = {};
+
+  RATIOS.forEach(ratio => {
+    folders[ratio.name] = zip.folder(ratio.folder);
+  });
+
+  let completed = 0;
+  let failed = 0;
+
+  for (const item of targets) {
+
+    try {
+
+      // 切り抜き
+      const canvas = cropImage(item);
+
+      // PNGデータへ変換
+      const blob = await new Promise(resolve => {
+        canvas.toBlob(resolve, "image/png");
+      });
+
+      if (!blob) {
+        throw new Error("PNG変換失敗");
+      }
+
+      // 保存先フォルダ
+      const folder = folders[item.ratio.name];
+
+      // ファイル名
+      const fileName = uniqueFileName(
+        folder,
+        getOutputName(item.name)
+      );
+
+      folder.file(fileName, blob);
+
+      item.status =
+        `完了：${item.ratio.folder}/${fileName}`;
+
+    } catch (error) {
+
+      console.error(error);
+
+      item.status = "処理エラー";
+      failed++;
+    }
+
+    completed++;
+
+    const percent = Math.round(
+      completed / targets.length * 100
+    );
+
+    progressBar.style.width = percent + "%";
+
+    progressText.textContent =
+      `${completed} / ${targets.length} 枚処理済み`;
+
+    render();
+
+    // ブラウザの描画機会を確保
+    await new Promise(resolve => setTimeout(resolve, 0));
+  }
+
+  if (completed === failed) {
+
+    processing = false;
+
+    downloadButton.textContent = "ZIPで一括ダウンロード";
+
+    render();
+
+    alert("すべての画像の処理に失敗しました。");
+    return;
+  }
+
+  try {
+
+    progressText.textContent = "ZIPファイルを作成中...";
+
+    const zipBlob = await zip.generateAsync(
+      {
+        type: "blob",
+        compression: "DEFLATE",
+        compressionOptions: {
+          level: 5
+        }
+      },
+      metadata => {
+        progressBar.style.width =
+          metadata.percent.toFixed(1) + "%";
+
+        progressText.textContent =
+          `ZIP作成中：${metadata.percent.toFixed(1)}%`;
+      }
+    );
+
+    // ZIPダウンロード
+    const url = URL.createObjectURL(zipBlob);
+
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = "cropped_images.zip";
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 60000);
+
+    progressText.textContent =
+      `完了：${completed - failed} 枚成功 / ${failed} 枚失敗`;
+
+  } catch (error) {
+
+    console.error(error);
+
+    alert("ZIPファイルの作成に失敗しました。");
+
+    progressText.textContent = "ZIP作成エラー";
+
+  } finally {
+
+    processing = false;
+
+    downloadButton.textContent = "ZIPで一括ダウンロード";
+
+    render();
+  }
+
+});
+
+
+/* ========================================
+   初期化
+======================================== */
+
+render();
+
 </script>
 
 </body>
