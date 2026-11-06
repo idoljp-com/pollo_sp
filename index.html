@@ -1,0 +1,517 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111111">
+<title>画像トリミング</title>
+
+<style>
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #111;
+  color: #fff;
+  font-family: Arial, "Noto Sans JP", sans-serif;
+}
+
+.container {
+  width: 100%;
+  max-width: 760px;
+  margin: auto;
+  padding: 20px;
+}
+
+h1 {
+  font-size: 21px;
+  margin: 5px 0 22px;
+}
+
+.section {
+  margin-bottom: 22px;
+}
+
+.section-title {
+  font-size: 14px;
+  color: #aaa;
+  margin-bottom: 10px;
+}
+
+.upload {
+  width: 100%;
+  min-height: 150px;
+  border: 2px dashed #444;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  background: #1b1b1b;
+  cursor: pointer;
+  color: #aaa;
+}
+
+.upload:hover {
+  border-color: #a72bbd;
+}
+
+.upload strong {
+  color: #fff;
+  font-size: 15px;
+}
+
+.upload input {
+  display: none;
+}
+
+.ratios {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+}
+
+.ratio {
+  background: #222;
+  border: 1px solid #383838;
+  border-radius: 9px;
+  padding: 12px 5px;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.ratio.active {
+  border: 2px solid #a72bbd;
+  background: #301b35;
+  color: #fff;
+  padding: 11px 4px;
+}
+
+.ratio .shape {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border: 2px solid currentColor;
+  margin: 0 auto 8px;
+}
+
+.ratio[data-ratio="1:1"] .shape {
+  width: 27px;
+  height: 27px;
+}
+
+.ratio[data-ratio="16:9"] .shape {
+  width: 34px;
+  height: 19px;
+}
+
+.ratio[data-ratio="3:2"] .shape {
+  width: 33px;
+  height: 22px;
+}
+
+.ratio[data-ratio="2:3"] .shape {
+  width: 20px;
+  height: 30px;
+}
+
+.ratio[data-ratio="3:4"] .shape {
+  width: 22px;
+  height: 29px;
+}
+
+.ratio[data-ratio="4:3"] .shape {
+  width: 30px;
+  height: 22px;
+}
+
+.ratio[data-ratio="9:16"] .shape {
+  width: 17px;
+  height: 30px;
+}
+
+.ratio[data-ratio="4:5"] .shape {
+  width: 22px;
+  height: 28px;
+}
+
+.ratio[data-ratio="5:4"] .shape {
+  width: 30px;
+  height: 24px;
+}
+
+.info {
+  color: #aaa;
+  font-size: 12px;
+  margin-top: 10px;
+}
+
+.preview-wrap {
+  background: #1b1b1b;
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+}
+
+.preview {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100px;
+  max-height: 500px;
+  overflow: hidden;
+}
+
+.preview canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 470px;
+  object-fit: contain;
+}
+
+.placeholder {
+  color: #666;
+  font-size: 13px;
+  padding: 40px 0;
+}
+
+.image-info {
+  font-size: 12px;
+  color: #999;
+  margin-top: 12px;
+}
+
+button.download {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 10px;
+  background: #a72bbd;
+  color: white;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button.download:disabled {
+  background: #444;
+  color: #888;
+  cursor: not-allowed;
+}
+
+@media (min-width: 600px) {
+  .container {
+    padding-top: 35px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h1>画像トリミング</h1>
+
+  <!-- 画像入力 -->
+  <div class="section">
+    <div class="section-title">画像を入力</div>
+
+    <label class="upload" id="upload">
+      <strong>画像を選択</strong>
+      <span>またはここに画像をドラッグ＆ドロップ</span>
+      <input type="file" id="fileInput" accept="image/*">
+    </label>
+  </div>
+
+  <!-- 比率選択 -->
+  <div class="section">
+    <div class="section-title">切り抜きサイズ</div>
+
+    <div class="ratios" id="ratios">
+
+      <button class="ratio" data-ratio="1:1">
+        <span class="shape"></span>1:1
+      </button>
+
+      <button class="ratio" data-ratio="16:9">
+        <span class="shape"></span>16:9
+      </button>
+
+      <button class="ratio" data-ratio="3:2">
+        <span class="shape"></span>3:2
+      </button>
+
+      <button class="ratio" data-ratio="2:3">
+        <span class="shape"></span>2:3
+      </button>
+
+      <button class="ratio" data-ratio="3:4">
+        <span class="shape"></span>3:4
+      </button>
+
+      <button class="ratio" data-ratio="4:3">
+        <span class="shape"></span>4:3
+      </button>
+
+      <button class="ratio" data-ratio="9:16">
+        <span class="shape"></span>9:16
+      </button>
+
+      <button class="ratio" data-ratio="4:5">
+        <span class="shape"></span>4:5
+      </button>
+
+      <button class="ratio" data-ratio="5:4">
+        <span class="shape"></span>5:4
+      </button>
+
+    </div>
+
+    <div class="info" id="ratioInfo">
+      画像を入力すると最も近い比率を自動選択します。
+    </div>
+  </div>
+
+  <!-- プレビュー -->
+  <div class="section">
+    <div class="section-title">切り抜きプレビュー</div>
+
+    <div class="preview-wrap">
+      <div class="preview" id="preview">
+        <div class="placeholder">画像がまだ選択されていません</div>
+      </div>
+
+      <div class="image-info" id="imageInfo"></div>
+    </div>
+  </div>
+
+  <!-- 保存 -->
+  <div class="section">
+    <button class="download" id="download" disabled>
+      切り抜いた画像を保存
+    </button>
+  </div>
+
+</div>
+
+<script>
+const RATIO_LIST = [
+  { name: "1:1", value: 1 },
+  { name: "16:9", value: 16 / 9 },
+  { name: "3:2", value: 3 / 2 },
+  { name: "2:3", value: 2 / 3 },
+  { name: "3:4", value: 3 / 4 },
+  { name: "4:3", value: 4 / 3 },
+  { name: "9:16", value: 9 / 16 },
+  { name: "4:5", value: 4 / 5 },
+  { name: "5:4", value: 5 / 4 }
+];
+
+let originalImage = null;
+let selectedRatio = null;
+
+const fileInput = document.getElementById("fileInput");
+const upload = document.getElementById("upload");
+const preview = document.getElementById("preview");
+const imageInfo = document.getElementById("imageInfo");
+const ratioInfo = document.getElementById("ratioInfo");
+const download = document.getElementById("download");
+
+const canvas = document.createElement("canvas");
+const ctx = canvas.getContext("2d");
+
+// 画像読み込み
+fileInput.addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (file) loadImage(file);
+});
+
+// ドラッグ＆ドロップ
+upload.addEventListener("dragover", e => {
+  e.preventDefault();
+  upload.style.borderColor = "#a72bbd";
+});
+
+upload.addEventListener("dragleave", () => {
+  upload.style.borderColor = "#444";
+});
+
+upload.addEventListener("drop", e => {
+  e.preventDefault();
+  upload.style.borderColor = "#444";
+
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith("image/")) {
+    loadImage(file);
+  }
+});
+
+// 画像読み込み処理
+function loadImage(file) {
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+
+  img.onload = () => {
+    if (originalImage?.src?.startsWith("blob:")) {
+      URL.revokeObjectURL(originalImage.src);
+    }
+
+    originalImage = img;
+
+    const width = img.naturalWidth;
+    const height = img.naturalHeight;
+    const originalRatio = width / height;
+
+    // 最も近い比率を自動判定
+    selectedRatio = RATIO_LIST.reduce((best, current) => {
+      const currentDiff = Math.abs(
+        Math.log(originalRatio / current.value)
+      );
+
+      const bestDiff = Math.abs(
+        Math.log(originalRatio / best.value)
+      );
+
+      return currentDiff < bestDiff ? current : best;
+    });
+
+    updateRatioButtons();
+    updatePreview();
+
+    imageInfo.textContent =
+      `元画像：${width} × ${height}px`;
+
+    URL.revokeObjectURL(url);
+  };
+
+  img.onerror = () => {
+    URL.revokeObjectURL(url);
+    alert("画像を読み込めませんでした。");
+  };
+
+  img.src = url;
+}
+
+// 比率ボタン
+document.querySelectorAll(".ratio").forEach(button => {
+  button.addEventListener("click", () => {
+    const name = button.dataset.ratio;
+
+    selectedRatio = RATIO_LIST.find(
+      item => item.name === name
+    );
+
+    updateRatioButtons();
+    updatePreview();
+  });
+});
+
+// ボタン表示更新
+function updateRatioButtons() {
+  document.querySelectorAll(".ratio").forEach(button => {
+    button.classList.toggle(
+      "active",
+      button.dataset.ratio === selectedRatio?.name
+    );
+  });
+
+  if (selectedRatio) {
+    ratioInfo.textContent =
+      `選択中：${selectedRatio.name}`;
+  }
+}
+
+// 最大面積で中央切り抜き
+function cropImage() {
+  const sourceWidth = originalImage.naturalWidth;
+  const sourceHeight = originalImage.naturalHeight;
+  const targetRatio = selectedRatio.value;
+  const sourceRatio = sourceWidth / sourceHeight;
+
+  let cropWidth;
+  let cropHeight;
+  let cropX;
+  let cropY;
+
+  if (sourceRatio > targetRatio) {
+    // 元画像の横幅が余る場合
+    cropHeight = sourceHeight;
+    cropWidth = sourceHeight * targetRatio;
+    cropX = (sourceWidth - cropWidth) / 2;
+    cropY = 0;
+  } else {
+    // 元画像の縦幅が余る場合
+    cropWidth = sourceWidth;
+    cropHeight = sourceWidth / targetRatio;
+    cropX = 0;
+    cropY = (sourceHeight - cropHeight) / 2;
+  }
+
+  canvas.width = Math.round(cropWidth);
+  canvas.height = Math.round(cropHeight);
+
+  ctx.drawImage(
+    originalImage,
+    cropX,
+    cropY,
+    cropWidth,
+    cropHeight,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+  return {
+    width: canvas.width,
+    height: canvas.height
+  };
+}
+
+// プレビュー更新
+function updatePreview() {
+  if (!originalImage || !selectedRatio) return;
+
+  const result = cropImage();
+
+  preview.innerHTML = "";
+  preview.appendChild(canvas);
+
+  imageInfo.textContent =
+    `切り抜き後：${result.width} × ${result.height}px`;
+
+  download.disabled = false;
+}
+
+// 保存
+download.addEventListener("click", () => {
+  if (!originalImage) return;
+
+  canvas.toBlob(blob => {
+    if (!blob) {
+      alert("画像の保存に失敗しました。");
+      return;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+
+    a.href = url;
+    a.download = `crop_${selectedRatio.name.replace(":", "x")}.png`;
+    a.click();
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, "image/png");
+});
+</script>
+
+</body>
+</html>
