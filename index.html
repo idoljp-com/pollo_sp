@@ -799,12 +799,9 @@ downloadButton.addEventListener("click", async () => {
 
   const zip = new JSZip();
 
-  // 比率別フォルダ
+  // 比率別フォルダは、実際に保存する画像がある場合だけ作成する
+  // 先に全フォルダを作成すると、画像がない比率の空フォルダもZIPに含まれる
   const folders = {};
-
-  RATIOS.forEach(ratio => {
-    folders[ratio.name] = zip.folder(ratio.folder);
-  });
 
   let completed = 0;
   let failed = 0;
@@ -826,7 +823,13 @@ downloadButton.addEventListener("click", async () => {
       }
 
       // 保存先フォルダ
-      const folder = folders[item.ratio.name];
+      // この比率の画像が初めて正常に処理された時点でフォルダを作成する
+      let folder = folders[item.ratio.name];
+
+      if (!folder) {
+        folder = zip.folder(item.ratio.folder);
+        folders[item.ratio.name] = folder;
+      }
 
       // ファイル名
       const fileName = uniqueFileName(
